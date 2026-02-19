@@ -1,0 +1,94 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  passwordHash String
+  isGuest      Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  gamesPlayed Int @default(0)
+  gamesWon    Int @default(0)
+  totalScore  Int @default(0)
+
+  gameParticipations GamePlayer[]
+
+  @@index([username])
+}
+
+enum GameStatus {
+  IN_PROGRESS
+  FINISHED
+  ABANDONED
+}
+
+model Game {
+  id         String     @id @default(uuid())
+  status     GameStatus @default(IN_PROGRESS)
+  createdAt  DateTime   @default(now())
+  finishedAt DateTime?
+
+  teamAScore  Int     @default(0)
+  teamBScore  Int     @default(0)
+  winningTeam Int?
+  totalHands  Int     @default(0)
+  hadBots     Boolean @default(false)
+
+  players GamePlayer[]
+  hands   GameHand[]
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model GamePlayer {
+  id        String  @id @default(uuid())
+  gameId    String
+  userId    String?
+  seatIndex Int
+  teamIndex Int
+  isBot     Boolean @default(false)
+  botName   String?
+
+  game Game  @relation(fields: [gameId], references: [id])
+  user User? @relation(fields: [userId], references: [id])
+
+  @@unique([gameId, seatIndex])
+  @@index([userId])
+  @@index([gameId])
+}
+
+model GameHand {
+  id             String  @id @default(uuid())
+  gameId         String
+  handNumber     Int
+  dealerSeat     Int
+
+  contractValue Int?
+  contractSuit  String?
+  contractTeam  Int?
+  multiplier    Int     @default(1)
+
+  attackingPoints Int?
+  defendingPoints Int?
+  contractMade    Boolean?
+  isCapot         Boolean @default(false)
+  beloteRebelote  Int?
+  allPassed       Boolean @default(false)
+
+  teamAScoreDelta Int @default(0)
+  teamBScoreDelta Int @default(0)
+
+  game Game @relation(fields: [gameId], references: [id])
+
+  @@unique([gameId, handNumber])
+  @@index([gameId])
+}

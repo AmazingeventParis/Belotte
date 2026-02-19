@@ -1,0 +1,106 @@
+import 'dart:async';
+import 'dart:convert';
+import 'package:web_socket_channel/web_socket_channel.dart';
+import '../config/app_config.dart';
+
+class WebSocketService {
+  WebSocketChannel? _channel;
+  final StreamController<Map<String, dynamic>> _messageController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  Timer? _pingTimer;
+  Timer? _reconnectTimer;
+  String? _token;
+  bool _isConnected = false;
+  int _reconnectAttempts = 0;
+
+  Stream<Map<String, dynamic>> get messages => _messageController.stream;
+  bool get isConnected => _isConnected;
+
+  Future<void> connect(String token) async {
+    _token = token;
+    _reconnectAttempts = 0;
+    await _doConnect();
+  }
+
+  Future<void> _doConnect() async {
+    try {
+      _channel = WebSocketChannel.connect(Uri.parse(AppConfig.wsUrl));
+
+      _channel!.stream.listen(
+        _onMessage,
+        onDone: _onDisconnected,
+        onError: (error) => _onDisconnected(),
+      );
+
+      // Send auth
+      send({'type': 'auth', 'token': _token});
+
+      // Start ping
+      _pingTimer?.cancel();
+      _pingTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+        send({'type': 'ping'});
+      });
+
+      _isConnected = true;
+      _reconnectAttempts = 0;
+    } catch (e) {
+      _onDisconnected();
+    }
+  }
+
+  void send(Map<String, dynamic> message) {
+    if (_channel != null) {
+      _channel!.sink.add(jsonEncode(message));
+    }
+  }
+
+  void _onMessage(dynamic data) {
+    try {
+      final message = jsonDecode(data.toString()) as Map<String, dynamic>;
+      _messageController.add(message);
+    } catch (_) {}
+  }
+
+  void _onDisconnected() {
+    _isConnected = false;
+    _pingTimer?.cancel();
+
+    if (_token != null && _reconnectAttempts < AppConfig.reconnectMaxAttempts) {
+      final delay = Duration(
+        milliseconds: (1000 * (1 << _reconnectAttempts)).clamp(1000, 16000),
+      );
+      _reconnectAttempts++;
+      _reconnectTimer = Timer(delay, _doConnect);
+    }
+  }
+
+  void joinQueue() => send({'type': 'join_queue'});
+  void cancelQueue() => send({'type': 'cancel_queue'});
+
+  void placeBid(int value, String suit) =>
+      send({'type': 'place_bid', 'value': value, 'suit': suit});
+
+  void passBid() => send({'type': 'pass_bid'});
+  void coinche() => send({'type': 'coinche'});
+  void surcoinche() => send({'type': 'surcoinche'});
+
+  void playCard(String suit, String rank) =>
+      send({'type': 'play_card', 'suit': suit, 'rank': rank});
+
+  void reconnectToGame(String gameId) =>
+      send({'type': 'reconnect', 'gameId': gameId, 'token': _token ?? ''});
+
+  Future<void> disconnect() async {
+    _pingTimer?.cancel();
+    _reconnectTimer?.cancel();
+    _token = null;
+    _isConnected = false;
+    await _channel?.sink.close();
+    _channel = null;
+  }
+
+  void dispose() {
+    disconnect();
+    _messageController.close();
+  }
+}
