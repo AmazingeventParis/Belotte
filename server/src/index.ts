@@ -8,9 +8,17 @@ import { createToken } from './auth/jwt.js';
 import { GameWebSocketServer } from './ws/WebSocketServer.js';
 import { logger } from './utils/logger.js';
 
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 const prisma = new PrismaClient();
 const app = express();
 app.use(express.json());
+
+// Serve static files (APK download)
+app.use('/download', express.static(path.join(__dirname, '..', 'public')));
 
 // Root - Landing page
 app.get('/', (_req, res) => {
@@ -90,8 +98,26 @@ app.get('/', (_req, res) => {
     }
     .info-card .label { color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
     .info-card .value { font-size: 20px; font-weight: 600; margin-top: 4px; color: #2ecc71; }
+    .download-btn {
+      display: inline-block;
+      margin-top: 32px;
+      padding: 16px 40px;
+      background: linear-gradient(135deg, #2ecc71, #27ae60);
+      color: #fff;
+      text-decoration: none;
+      font-size: 18px;
+      font-weight: 700;
+      border-radius: 50px;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 20px #2ecc7144;
+    }
+    .download-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 30px #2ecc7166;
+    }
+    .download-btn .icon { margin-right: 8px; }
     .footer {
-      margin-top: 40px;
+      margin-top: 24px;
       color: #555;
       font-size: 13px;
     }
@@ -124,7 +150,10 @@ app.get('/', (_req, res) => {
         <div class="value">1.0.0</div>
       </div>
     </div>
-    <p class="footer">Telechargez l'application mobile pour jouer</p>
+    <a href="/download/belotte.apk" class="download-btn">
+      <span class="icon">\u2B07</span> Telecharger l'APK Android
+    </a>
+    <p class="footer">Android 5.0+ requis</p>
   </div>
 </body>
 </html>`);
