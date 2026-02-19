@@ -12,6 +12,21 @@ const prisma = new PrismaClient();
 const app = express();
 app.use(express.json());
 
+// Root
+app.get('/', (_req, res) => {
+  res.json({
+    name: 'Belotte Contrée API',
+    version: '1.0.0',
+    endpoints: {
+      health: 'GET /health',
+      register: 'POST /api/auth/register',
+      login: 'POST /api/auth/login',
+      guest: 'POST /api/auth/guest',
+      websocket: 'WSS /ws',
+    },
+  });
+});
+
 // Health check
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', uptime: process.uptime() });
