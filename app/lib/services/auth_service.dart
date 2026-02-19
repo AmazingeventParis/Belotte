@@ -9,46 +9,52 @@ class AuthService {
   static const _userIdKey = 'user_id';
 
   Future<Map<String, String>?> register(String username, String password) async {
-    final response = await http.post(
-      Uri.parse('${AppConfig.apiBaseUrl}/api/auth/register'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'username': username, 'password': password}),
-    );
+    try {
+      final response = await http.post(
+        Uri.parse('${AppConfig.apiBaseUrl}/api/auth/register'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'username': username, 'password': password}),
+      ).timeout(const Duration(seconds: 10));
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      await _saveAuth(data['token'], data['username'], data['userId']);
-      return {'token': data['token'], 'username': data['username'], 'userId': data['userId']};
-    }
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        await _saveAuth(data['token'], data['username'], data['userId']);
+        return {'token': data['token'], 'username': data['username'], 'userId': data['userId']};
+      }
+    } catch (_) {}
     return null;
   }
 
   Future<Map<String, String>?> login(String username, String password) async {
-    final response = await http.post(
-      Uri.parse('${AppConfig.apiBaseUrl}/api/auth/login'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'username': username, 'password': password}),
-    );
+    try {
+      final response = await http.post(
+        Uri.parse('${AppConfig.apiBaseUrl}/api/auth/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'username': username, 'password': password}),
+      ).timeout(const Duration(seconds: 10));
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      await _saveAuth(data['token'], data['username'], data['userId']);
-      return {'token': data['token'], 'username': data['username'], 'userId': data['userId']};
-    }
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        await _saveAuth(data['token'], data['username'], data['userId']);
+        return {'token': data['token'], 'username': data['username'], 'userId': data['userId']};
+      }
+    } catch (_) {}
     return null;
   }
 
   Future<Map<String, String>?> loginAsGuest() async {
-    final response = await http.post(
-      Uri.parse('${AppConfig.apiBaseUrl}/api/auth/guest'),
-      headers: {'Content-Type': 'application/json'},
-    );
+    try {
+      final response = await http.post(
+        Uri.parse('${AppConfig.apiBaseUrl}/api/auth/guest'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(const Duration(seconds: 10));
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      await _saveAuth(data['token'], data['username'], data['userId']);
-      return {'token': data['token'], 'username': data['username'], 'userId': data['userId']};
-    }
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        await _saveAuth(data['token'], data['username'], data['userId']);
+        return {'token': data['token'], 'username': data['username'], 'userId': data['userId']};
+      }
+    } catch (_) {}
     return null;
   }
 
