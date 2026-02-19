@@ -27,6 +27,9 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
     final ws = ref.read(wsServiceProvider);
     final auth = ref.read(authProvider);
 
+    // Reset game state for new game
+    ref.read(gameProvider.notifier).reset();
+
     // Connect and join queue
     if (!ws.isConnected && auth.token != null) {
       ws.connect(auth.token!);
@@ -38,7 +41,10 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
         ws.joinQueue();
       }
       if (msg['type'] == 'game_start' && mounted) {
-        context.go('/game');
+        // Small delay to let GameNotifier process buffered messages
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (mounted) context.go('/game');
+        });
       }
     });
 

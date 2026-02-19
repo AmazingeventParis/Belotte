@@ -13,8 +13,19 @@ class WebSocketService {
   bool _isConnected = false;
   int _reconnectAttempts = 0;
 
+  // Buffer last game messages so late subscribers don't miss them
+  final List<Map<String, dynamic>> _pendingGameMessages = [];
+  bool _gameStartReceived = false;
+
   Stream<Map<String, dynamic>> get messages => _messageController.stream;
   bool get isConnected => _isConnected;
+
+  /// Get any buffered game messages and clear the buffer
+  List<Map<String, dynamic>> consumePendingMessages() {
+    final messages = List<Map<String, dynamic>>.from(_pendingGameMessages);
+    _pendingGameMessages.clear();
+    return messages;
+  }
 
   Future<void> connect(String token) async {
     _token = token;
@@ -57,6 +68,19 @@ class WebSocketService {
   void _onMessage(dynamic data) {
     try {
       final message = jsonDecode(data.toString()) as Map<String, dynamic>;
+
+      // Buffer game-critical messages so late subscribers can catch up
+      final type = message['type'];
+      if (type == 'game_start') {
+        _gameStartReceived = true;
+        _pendingGameMessages.clear();
+        _pendingGameMessages.add(message);
+      } else if (_gameStartReceived &&
+          (type == 'deal' || type == 'bidding_turn' || type == 'play_turn' ||
+           type == 'contract_set' || type == 'new_hand')) {
+        _pendingGameMessages.add(message);
+      }
+
       _messageController.add(message);
     } catch (_) {}
   }

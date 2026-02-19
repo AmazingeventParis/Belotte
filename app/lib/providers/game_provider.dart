@@ -12,6 +12,12 @@ class GameNotifier extends StateNotifier<GameState?> {
 
   GameNotifier(this._ws) : super(null) {
     _subscription = _ws.messages.listen(_handleMessage);
+
+    // Replay any buffered messages we missed
+    final pending = _ws.consumePendingMessages();
+    for (final msg in pending) {
+      _handleMessage(msg);
+    }
   }
 
   void _handleMessage(Map<String, dynamic> msg) {
