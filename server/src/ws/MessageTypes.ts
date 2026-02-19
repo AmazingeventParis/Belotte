@@ -49,6 +49,10 @@ export const PingMessage = z.object({
   type: z.literal('ping'),
 });
 
+export const LeaveGameMessage = z.object({
+  type: z.literal('leave_game'),
+});
+
 export const ClientMessage = z.discriminatedUnion('type', [
   AuthMessage,
   JoinQueueMessage,
@@ -60,6 +64,7 @@ export const ClientMessage = z.discriminatedUnion('type', [
   PlayCardMessage,
   ReconnectMessage,
   PingMessage,
+  LeaveGameMessage,
 ]);
 
 export type ClientMessageType = z.infer<typeof ClientMessage>;

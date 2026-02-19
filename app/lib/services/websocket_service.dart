@@ -71,7 +71,7 @@ class WebSocketService {
 
       // Buffer game-critical messages so late subscribers can catch up
       final type = message['type'];
-      if (type == 'game_start') {
+      if (type == 'game_start' || type == 'game_state') {
         _gameStartReceived = true;
         _pendingGameMessages.clear();
         _pendingGameMessages.add(message);
@@ -98,7 +98,12 @@ class WebSocketService {
     }
   }
 
-  void joinQueue() => send({'type': 'join_queue'});
+  void leaveGame() => send({'type': 'leave_game'});
+  void joinQueue() {
+    // Leave any existing game first, then join queue
+    leaveGame();
+    send({'type': 'join_queue'});
+  }
   void cancelQueue() => send({'type': 'cancel_queue'});
 
   void placeBid(int value, String suit) =>

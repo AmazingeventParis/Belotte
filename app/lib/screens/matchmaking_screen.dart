@@ -40,7 +40,11 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
       if (msg['type'] == 'auth_ok') {
         ws.joinQueue();
       }
-      if (msg['type'] == 'game_start' && mounted) {
+      if (msg['type'] == 'game_left') {
+        // Previous game cleared, now join queue
+        ws.send({'type': 'join_queue'});
+      }
+      if ((msg['type'] == 'game_start' || msg['type'] == 'game_state') && mounted) {
         // Small delay to let GameNotifier process buffered messages
         Future.delayed(const Duration(milliseconds: 100), () {
           if (mounted) context.go('/game');

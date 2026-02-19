@@ -82,9 +82,15 @@ export class GameWebSocketServer {
 
           this.send(ws, { type: 'auth_ok', userId: payload.userId, username: payload.username });
 
-          // If player was in a game, auto-reconnect
+          // If player was in a game, check if still active
           if (client.gameId) {
-            this.handleReconnect(client);
+            const existingRoom = roomManager.getRoom(client.gameId);
+            if (existingRoom && existingRoom.engine.gameState.phase !== 'finished') {
+              this.handleReconnect(client);
+            } else {
+              // Game is over or gone, clear reference
+              client.gameId = null;
+            }
           }
 
           ws.on('close', () => this.handleDisconnect(client));
@@ -162,13 +168,52 @@ export class GameWebSocketServer {
         client.gameId = msg.gameId;
         this.handleReconnect(client);
         break;
+
+      case 'leave_game':
+        this.handleLeaveGame(client);
+        break;
     }
+  }
+
+  private handleLeaveGame(client: AuthenticatedSocket): void {
+    if (!client.gameId) {
+      this.send(client.ws, { type: 'game_left' });
+      return;
+    }
+
+    const room = roomManager.getRoom(client.gameId);
+    if (room) {
+      const seat = this.getPlayerSeat(room, client.userId);
+      if (seat !== -1) {
+        room.engine.gameState.players[seat].isDisconnected = true;
+        room.playerConnections.delete(client.userId);
+        // If it's this player's turn, let bot take over
+        if (room.engine.gameState.currentPlayerSeat === seat) {
+          room.botManager.scheduleBotAction(room.engine, seat);
+        }
+      }
+    }
+
+    client.gameId = null;
+    this.send(client.ws, { type: 'game_left' });
+    logger.info({ userId: client.userId }, 'Player left game');
   }
 
   private async handleJoinQueue(client: AuthenticatedSocket): Promise<void> {
     if (client.gameId) {
-      this.send(client.ws, { type: 'error', code: 'ALREADY_IN_GAME', message: 'Already in a game' });
-      return;
+      // Check if the game still exists and is active
+      const existingRoom = roomManager.getRoom(client.gameId);
+      if (!existingRoom || existingRoom.engine.gameState.phase === 'finished') {
+        // Game is over or gone, clean up and allow new matchmaking
+        if (existingRoom) {
+          roomManager.destroyRoom(client.gameId);
+        }
+        client.gameId = null;
+        logger.info({ userId: client.userId }, 'Cleared stale game reference');
+      } else {
+        this.send(client.ws, { type: 'error', code: 'ALREADY_IN_GAME', message: 'Already in a game' });
+        return;
+      }
     }
 
     await addToQueue({
@@ -344,6 +389,22 @@ export class GameWebSocketServer {
     // Wire up game events to broadcast
     engine.onEvent((event: GameEvent) => {
       this.broadcastGameEvent(room, event);
+
+      // Clean up after game over
+      if (event.type === 'game_over') {
+        setTimeout(() => {
+          // Clear gameId for all human players
+          for (const player of engine.gameState.players) {
+            if (!player.isBot) {
+              const client = this.clients.get(player.id);
+              if (client) {
+                client.gameId = null;
+              }
+            }
+          }
+          roomManager.destroyRoom(engine.id);
+        }, 3000); // 3s delay so clients can receive game_over
+      }
     });
 
     // Notify all human players
