@@ -8,17 +8,9 @@ import { createToken } from './auth/jwt.js';
 import { GameWebSocketServer } from './ws/WebSocketServer.js';
 import { logger } from './utils/logger.js';
 
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
 const prisma = new PrismaClient();
 const app = express();
 app.use(express.json());
-
-// Serve static files (APK download)
-app.use('/download', express.static(path.join(__dirname, '..', 'public')));
 
 // Root - Landing page
 app.get('/', (_req, res) => {
@@ -150,7 +142,7 @@ app.get('/', (_req, res) => {
         <div class="value">1.0.0</div>
       </div>
     </div>
-    <a href="/download/belotte.apk" class="download-btn">
+    <a href="https://github.com/AmazingeventParis/Belotte/releases/latest/download/app-release.apk" class="download-btn">
       <span class="icon">\u2B07</span> Telecharger l'APK Android
     </a>
     <p class="footer">Android 5.0+ requis</p>
